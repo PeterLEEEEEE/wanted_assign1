@@ -402,17 +402,14 @@ http://3.143.24.251:8000
 ```
 
 ### 9. 대댓글 
-- Endpoint
 
-| **METHOD** | **ENDPOINT**   | **body**   | **수행 목적** |
-|:------|:-------------|:-----------------------:|:------------|
-| POST | posts/<post_id>/comment | content, parent_comment_id | 대댓글작성 |
-| GET | posts/<post_id>/comment |                           | 대댓글조회 |
-| PATCH | posts/comment/<comment_id>| content              | 대댓글수정 |
-| DELETE | posts/comment/<comment_id> |                    | 대댓글삭제 |
+#### 9-1) 대댓글 작성
 
-#### 대댓글 작성
-- endpoint : http://3.143.24.251:8000/posts/<post_id>/comment
+endpoint : http://3.143.24.251:8000/posts/<post_id>/comment
+| **이름**    | **data type** | **body**  | **처리**|
+|:----------|:--------:|:----------------------------|:------------------------|
+| content  | string | “content”:“hi,” | path parameter로 post_id을 전달받아서 게시글이 존재하는 지 파악한 후 있으면 반환 |
+| parent_comment_id  | string | “parent_comment” : 1 | path parameter로 post_id을 전달받아서 게시글이 존재하는 지 파악한 후 있으면 반환 |
 
 **SUCCESS EXAMPLE**
 ```
@@ -439,8 +436,12 @@ http://3.143.24.251:8000
  "MESSAGE": "NOT_COMMENT"
 }
 ```
-#### 대댓글 조회
+#### 9-2) 대댓글 조회
 - endpoint : http://3.143.24.251:8000/posts/<post_id>/comment?page=1
+
+| **이름**    | **data type** | **endpoint**  | **처리**|
+|:----------|:--------:|:----------------------------|:------------------------|
+| page  | string | posts/<post_id>/comment?page=1 | page 위치를 int형으로 입력받는다. 미입력 시 자동으로 1, 0 이하의 숫자 받으면 에러처리 |
 page를 query parameter로 전달 받으면 LIMIT을 통해 한 페이지 당 3개의 게시물을 보여줄 수 있게끔 구현
 
 **SUCCESS EXAMPLE**
@@ -478,8 +479,12 @@ page를 query parameter로 전달 받으면 LIMIT을 통해 한 페이지 당 3�
 }
 ```
 
-#### 대댓글 수정
+#### 9-3) 대댓글 수정
 - endpoint : http://3.143.24.251:8000/posts/comment/<comment_id>
+
+| **이름**    | **data type** | **endpoint, body**  | **처리**|
+| post_id  | string | posts/comment/<comment_id> | path parameter로 comment_id을 전달받아서 대댓글이 존재하는 지 파악한 후 수정 |
+| content  | string | “content” : “hello world” | 댓글을 수정, 예외의 경우 에러처리  |
 
 **SUCCESS EXAMPLE**
 ```
@@ -507,8 +512,11 @@ page를 query parameter로 전달 받으면 LIMIT을 통해 한 페이지 당 3�
   "MESSAGE": "NOT_COMMENT"
 }
 ```
-#### 대댓글 삭제
+#### 9-4) 대댓글 삭제
 - endpoint : http://3.143.24.251:8000/posts/comment/<comment_id> 
+
+| **이름**    | **data type** | **endpoint, body**  | **처리**|
+| post_id  | string | posts/comment/<comment_id> | path parameter로 comment_id을 전달받아서 대댓글이 존재하는 지 파악한 후 삭제 |
 
 **SUCCESS EXAMPLE**
 ```
