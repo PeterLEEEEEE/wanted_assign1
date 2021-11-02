@@ -8,8 +8,9 @@ import json
 import unittest
 from django.test import TestCase, Client, client
 from users.models import User 
-from posts.models import Post
+from posts.models import Post,Comment
 from my_settings import ALGORITHM, SECRET_KEY
+from wanted_assign1.posts.models import Comment
 
 class PostTest(TestCase):
     def setUp(self):
@@ -55,6 +56,7 @@ class PostTest(TestCase):
     def tearDown(self):
         User.objects.all().delete()
         Post.objects.all().delete()
+        Comment.objects.all().delete()
     
     def test_create_newpost_post_success(self):
         client  = Client()
@@ -340,4 +342,6 @@ class PostTest(TestCase):
         
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"MESSAGE": "MUST START WITH GREATER THAN 0"})
+
+    
     

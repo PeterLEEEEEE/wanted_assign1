@@ -6,7 +6,7 @@ from django.views     import View
 from django.http      import JsonResponse
 from django.db.models import Q
 from users.utils      import login_decorator
-from posts.models     import Category, Post
+from posts.models     import Category, Post, Comment
 from users.models     import User
 
 
@@ -18,7 +18,7 @@ class PostDetailView(View):
         cookie = request.COOKIES.get('hits', '|')
         post = Post.objects.select_related('author').get(id=post_id)
         temp = post.view_count
-        
+
         if f'{post_id}' not in cookie:
             temp += 1
         
@@ -32,7 +32,7 @@ class PostDetailView(View):
                 "category_id": post.category_id,
                 "view_count": temp,
             }
-        
+
         if f'{post_id}' in cookie:
             return JsonResponse({"RESULT": post_list}, status=200)
         
@@ -176,6 +176,98 @@ class PostManageView(View):
             return JsonResponse({"MESSAGE": "KEY_ERROR"}, status=404)
         except JSONDecodeError:
             return JsonResponse({"message": "INVALID DATA FORMAT"}, status=400)
+
+class CommentView(View):
+    @login_decorator
+    def post(self,request,post_id):
+        try:
+            user              = request.user
+            data              = json.loads(request.body)
+            content           = data.get('content',None)
+            parent_comment_id = data.get('parent_comment',None)
+
+            if not Post.objects.filter(id=post_id).exists():
+                return JsonResponse({"MESSAGE":"INVALID_POSTING"},status=400)
+            
+            if content == "":
+                return JsonResponse({"MESSAGE":"NOT_COMMENT"},status=400)
+
+            post = Post.objects.get(id=post_id)
+
+            Comment.objects.create(
+                author            = user,
+                post              = post,
+                content           = content,
+                parent_comment_id = parent_comment_id 
+            )
+            return JsonResponse({"MESSAGE":"COMMENT_CUSSESS"},status = 201)
+        except KeyError:
+            return JsonResponse({"MESSAGE": "KEY_ERROR"}, status=400)
+    
+    def get(self,request,post_id):
+        OFFSET = request.GET.get('page', 1)
+        LIMIT = 3
+        START = (int(OFFSET)-1) * LIMIT
+
+        if int(OFFSET) <= 0:
+            return JsonResponse({"MESSAGE": "MUST START WITH GREATER THAN 0"}, status=404)
+        
+        post     = Post.objects.select_related('author').get(id=post_id)
+        comments = Comment.objects.filter(post=post_id,parent_comment_id=None)
+
+        comment_list =[]
+        for comment in comments:
+            re_comment=[]
+            if Comment.objects.filter(post=post_id, parent_comment_id=comment.id).exists():
+                recomments = Comment.objects.filter(post=post_id, parent_comment_id=comment.id)[START:START+LIMIT]
+                for recomment in recomments:
+                    re_comment.append({
+                        'id'     : recomment.id,
+                        'parent_comment_id': recomment.parent_comment_id,
+                        'name'   : post.author.name,
+                        'content': recomment.content,
+                        'created_at' : recomment.created_at.strftime("%Y.%m.%d %H:%M"),
+                    })
+            comment_list.append({
+                'id'            : comment.id,
+                'post_id'       : post.id,
+                'name'          : post.author.name,
+                'content'       : comment.content,
+                'created_at'    : recomment.created_at.strftime("%Y.%m.%d %H:%M"),
+                'parent_comment': re_comment if re_comment else "없음"
+            })
+        
+        return JsonResponse({"COMMENT":comment_list},status = 200)
+
+    @login_decorator
+    def patch(self,request,comment_id):
+        try:
+            user = request.user
+            data = json.loads(request.body)
+            content = data.get('content',None)
+
+            if content == "":
+                    return JsonResponse({"MESSAGE":"NOT_COMMENT"},status=400)
+
+            if not Comment.objects.filter(id=comment_id, author=user).exists():
+                return JsonResponse({'message':'NOT_EXISTS'},status=400)
+
+            Comment.objects.filter(id=comment_id).update(content=content)
+            return JsonResponse({"MESSAGE":"UPDATE_CUSSESS"},status = 200)
+        except KeyError:
+            return JsonResponse({"MESSAGE": "KEY_ERROR"}, status=400)
+
+    @login_decorator
+    def delete(self,request,comment_id):
+        user = request.user
+
+        if not Comment.objects.filter(id=comment_id).exists():
+            return JsonResponse({"MESSAGE":"INVALID_COMMENT"}, status=404)
+        
+        comment = Comment.objects.filter(id=comment_id, author=user)
+        comment.delete()
+
+        return JsonResponse({"MESSAGE":"DELETE_CUSSESS"},status = 200)
 
 class SearchView(View):
     def get(self, request):
