@@ -8,8 +8,9 @@ import json
 import unittest
 from django.test import TestCase, Client, client
 from users.models import User 
-from posts.models import Post
+from posts.models import Category, Post,Comment
 from my_settings import ALGORITHM, SECRET_KEY
+
 
 class PostTest(TestCase):
     def setUp(self):
@@ -30,12 +31,24 @@ class PostTest(TestCase):
         )
         
         self.token2 = jwt.encode({'id': User.objects.get(id=2).id}, SECRET_KEY, algorithm = ALGORITHM)
-        
+        Category.objects.create(
+            id = 1,
+            name = '유머'
+        )
+        Category.objects.create(
+            id = 2,
+            name = '시사'
+        )
+        Category.objects.create(
+            id = 3,
+            name = '스포츠'
+        )
         Post.objects.create(
             id      = 1,
             title   = "title for post1",
             content = "this is peter's post",
             author_id  = User.objects.get(id = 1).id,
+            category_id = Category.objects.get(name='유머').id
         )
 
         Post.objects.create(
@@ -43,6 +56,7 @@ class PostTest(TestCase):
             title   = "title for post2",
             content = "this is peter's second post",
             author_id  = User.objects.get(id = 1).id,
+            category_id = Category.objects.get(name='시사').id
         )
 
         Post.objects.create(
@@ -50,11 +64,14 @@ class PostTest(TestCase):
             title   = "title for post3",
             content = "this is peter's third post",
             author_id  = User.objects.get(id = 1).id,
+            category_id = Category.objects.get(name='스포츠').id
         )
 
     def tearDown(self):
         User.objects.all().delete()
+        Category.objects.all().delete()
         Post.objects.all().delete()
+        Comment.objects.all().delete()
     
     def test_create_newpost_post_success(self):
         client  = Client()
@@ -67,7 +84,8 @@ class PostTest(TestCase):
             "id"     : 4,
             "title"  : "title for post1",
             "content": "this is kim's first post",
-            "author" : User.objects.get(id = user.id).id
+            "author" : User.objects.get(id = user.id).id,
+            "category": "스포츠"
         }
         
         response = client.post('/posts/newpost', json.dumps(newpost), **header, content_type='application/json')
@@ -113,7 +131,8 @@ class PostTest(TestCase):
             "id"     : 4,
             "title"  : " ",
             "content": "this is kim's first post",
-            "author" : User.objects.get(id = user.id).id
+            "author" : User.objects.get(id = user.id).id,
+            "category": "스포츠" 
         }
         
         response = client.post('/posts/newpost', json.dumps(newpost), **header, content_type='application/json')
@@ -131,7 +150,8 @@ class PostTest(TestCase):
             "id"     : 4,
             "title"  : "title for post1",
             "content": "      ",
-            "author" : User.objects.get(id = user.id).id
+            "author" : User.objects.get(id = user.id).id,
+            "category": "스포츠"
         }
         
         response = client.post('/posts/newpost', json.dumps(newpost), **header, content_type='application/json')
@@ -149,13 +169,34 @@ class PostTest(TestCase):
             "id"     : 4,
             "title"  : "title for post1",
             "content": "tooshort",
-            "author" : User.objects.get(id = user.id).id
+            "author" : User.objects.get(id = user.id).id,
+            "category": "스포츠"
         }
         
         response = client.post('/posts/newpost', json.dumps(newpost), **header, content_type='application/json')
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"MESSAGE": "NEED_MORE_THAN_10_WORDS"})
     
+    def test_create_newpost_post_content_category_not_exist(self):
+        client  = Client()
+        header  = {"HTTP_Authorization" : self.token2}
+        token   = header["HTTP_Authorization"]
+        payload = jwt.decode(token, SECRET_KEY, algorithms = ALGORITHM)
+        user    = User.objects.get(id = payload['id'])
+        
+        newpost = {
+            "id"     : 4,
+            "title"  : "title for post1",
+            "content": "tooshort",
+            "author" : User.objects.get(id = user.id).id,
+            "category": "스리랑카"
+        }
+        
+        response = client.post('/posts/newpost', json.dumps(newpost), **header, content_type='application/json')
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"MESSAGE": "CATEGORY DOES NOT EXIST"})
+    
+
     def test_post_delete_success(self):
         client  = Client()
         header  = {"HTTP_Authorization" : self.token1}
@@ -279,6 +320,8 @@ class PostTest(TestCase):
                 "user_id" : 1,
                 "written" : written,
                 "view_count": 1,
+                "category_id": 1,
+                "category": "유머"
             }
         }
         
@@ -309,6 +352,8 @@ class PostTest(TestCase):
                         "post_id": 3,
                         "user_id": 1,
                         "view_count": 0,
+                        "category_id": 3,
+                        "category": "스포츠"
                     },
                     {
                         "title": "title for post2",
@@ -317,6 +362,8 @@ class PostTest(TestCase):
                         "post_id": 2,
                         "user_id": 1,
                         "view_count": 0,
+                        "category_id": 2,
+                        "category": "시사"
                     },
                     {
                         "title": "title for post1",
@@ -325,6 +372,8 @@ class PostTest(TestCase):
                         "post_id": 1,
                         "user_id": 1,
                         "view_count": 0,
+                        "category_id": 1,
+                        "category": "유머"
                     }
                 ],
                 "post_count": 3,

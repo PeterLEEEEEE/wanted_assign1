@@ -19,3 +19,16 @@ class Post(TimeStamp):
     
     class Meta:
         db_table = 'posts'
+
+class Comment(TimeStamp):
+    author         = models.ForeignKey(User, on_delete=models.CASCADE)
+    post           = models.ForeignKey('Post', on_delete=models.CASCADE)
+    parent_comment = models.ForeignKey('self', on_delete=models.SET_NULL, null=True)
+    content        = models.CharField(max_length=500)
+
+    class Meta:
+        db_table = 'comments'
+
+
+    
+
