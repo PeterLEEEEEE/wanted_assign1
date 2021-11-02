@@ -11,7 +11,6 @@ from users.models import User
 from posts.models import Category, Post,Comment
 from my_settings import ALGORITHM, SECRET_KEY
 
-
 class PostTest(TestCase):
     def setUp(self):
         User.objects.create(
@@ -65,6 +64,26 @@ class PostTest(TestCase):
             content = "this is peter's third post",
             author_id  = User.objects.get(id = 1).id,
             category_id = Category.objects.get(name='스포츠').id
+        )
+        Comment.objects.create(
+            id = 1,
+            content = '하이요',
+            post = Post.objects.get(id=1),
+            author_id = User.objects.get(id = 1).id,
+        )
+        Comment.objects.create(
+            id = 2,
+            content = '바이요',
+            parent_comment_id = 1,
+            post = Post.objects.get(id=1),
+            author_id = User.objects.get(id = 1).id,
+        )
+        Comment.objects.create(
+            id = 3,
+            content = '안녕',
+            parent_comment_id = 1,
+            post = Post.objects.get(id=1),
+            author_id = User.objects.get(id = 1).id,
         )
 
     def tearDown(self):
@@ -429,3 +448,180 @@ class PostTest(TestCase):
                                 content_type="application/json")
         self.assertEqual(response.status_code, 405)
         self.assertEqual(response.json(), {"MESSAGE": "SEARCH DOES NOT EXIST"})
+    def test_comments_post_success(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        body = {
+            'content' : '안녕하세요'
+        }
+
+        response = client.post('/posts/1/comment', json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(), {
+            "MESSAGE":"COMMENT_SUCCESS"
+        })
+
+    def test_comments_post_fail(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        body = {
+            'contentsss' : '안녕하세요!!!'
+        }
+        response = client.post('/posts/2/comment', json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {
+            "MESSAGE": "KEY_ERROR"
+        })
+    def test_comments_post_not_comment_fail(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        body = {
+            "content" : ""
+        }
+        response = client.post('/posts/1/comment',json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "NOT_COMMENT"
+                }
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_comments_ppst_invalid_posting_fail(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token2}
+        body = {
+            "content" : "하나둘"
+        }
+        response = client.post('/posts/5/comment',json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "INVALID_POSTING"
+                }
+        )
+        self.assertEqual(response.status_code, 400)
+    def test_comments_get_success(self):
+        client = Client()
+        response = client.get('/posts/1/comment')
+        written1 = Comment.objects.get(id=1).created_at.strftime('%Y.%m.%d %H:%M')
+        written2 = Comment.objects.get(id=2).created_at.strftime('%Y.%m.%d %H:%M')
+        written3 = Comment.objects.get(id=3).created_at.strftime('%Y.%m.%d %H:%M')
+
+        test={
+            "COMMENT": [
+                {
+                    "id"            : 1,
+                    "post_id"       : 1,
+                    "name"          : "peter",
+                    "content"       : "하이요",
+                    "created_at"    : written1,
+                    "parent_comment": [
+                        {
+                            "id": 2,
+                            "parent_comment_id": 1,
+                            "name": "peter",
+                            "content": "바이요",
+                            "created_at": written2
+                        },
+                        {
+                            "id": 3,
+                            "parent_comment_id": 1,
+                            "name": "peter",
+                            "content": "안녕",
+                            "created_at": written3
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), test)
+
+    def test_comments_get_no_post_fail(self):
+        client = Client()
+        response = client.get('/posts/4/comment')
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "NOT_EXISTS"
+                }
+        )
+        self.assertEqual(response.status_code, 404)
+        
+    
+    def test_comments_patch_success(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        body = {
+            "content" : "안녕히가세요"
+        }
+        response = client.patch('/posts/comment/1',json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "UPDATE_SUCCESS"
+                }
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_comments_patch_not_exists_fail(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        body = {
+            "content" : '오하이요'
+        }
+        response = client.patch('/posts/comment/5',json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "NOT_EXISTS"
+                }
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_comments_patch_Key_error_fail(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        body = {
+            "contents" : '오하이요'
+        }
+        response = client.patch('/posts/comment/1',json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "KEY_ERROR"
+                }
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_comments_patch_not_comment_fail(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        body = {
+            "content" : ""
+        }
+        response = client.patch('/posts/comment/5',json.dumps(body), content_type='application/json', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "NOT_COMMENT"
+                }
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_comments_delete_success(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        response = client.delete('/posts/comment/1', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "DELETE_SUCCESS"
+                }
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_comments_delete_not_exists_fail(self):
+        client = Client()
+        headers  = {'HTTP_Authorization': self.token1}
+        response = client.delete('/posts/comment/5', **headers)
+        self.assertEqual(response.json(),
+            {
+                "MESSAGE": "INVALID_COMMENT"
+                }
+        )
+        self.assertEqual(response.status_code, 404)

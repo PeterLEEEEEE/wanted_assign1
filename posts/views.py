@@ -5,6 +5,8 @@ from datetime         import date, datetime, timedelta
 from django.views     import View
 from django.http      import JsonResponse
 from django.db.models import Q
+from django.core.paginator import Paginator ,EmptyPage, PageNotAnInteger
+
 from users.utils      import login_decorator
 from posts.models     import Category, Post, Comment
 from users.models     import User
@@ -183,7 +185,7 @@ class CommentView(View):
         try:
             user              = request.user
             data              = json.loads(request.body)
-            content           = data.get('content',None)
+            content           = data['content']
             parent_comment_id = data.get('parent_comment',None)
 
             if not Post.objects.filter(id=post_id).exists():
@@ -200,42 +202,40 @@ class CommentView(View):
                 content           = content,
                 parent_comment_id = parent_comment_id 
             )
-            return JsonResponse({"MESSAGE":"COMMENT_CUSSESS"},status = 201)
+            return JsonResponse({"MESSAGE":"COMMENT_SUCCESS"},status = 201)
         except KeyError:
             return JsonResponse({"MESSAGE": "KEY_ERROR"}, status=400)
     
-    def get(self,request,post_id):
-        OFFSET = request.GET.get('page', 1)
-        LIMIT = 3
-        START = (int(OFFSET)-1) * LIMIT
+    def get(self,request,post_id):        
+        offset = request.GET.get('page', 1)
+        limit = 3
+        start = (int(offset)-1) * limit
 
-        if int(OFFSET) <= 0:
+        if not Comment.objects.filter(post=post_id).exists():
+            return JsonResponse({"MESSAGE": "NOT_EXISTS"}, status=404)
+
+        if int(offset) <= 0:
             return JsonResponse({"MESSAGE": "MUST START WITH GREATER THAN 0"}, status=404)
         
         post     = Post.objects.select_related('author').get(id=post_id)
-        comments = Comment.objects.filter(post=post_id,parent_comment_id=None)
+        comments = Comment.objects.filter(post=post_id,parent_comment_id=None).order_by('created_at')
 
-        comment_list =[]
-        for comment in comments:
-            re_comment=[]
-            if Comment.objects.filter(post=post_id, parent_comment_id=comment.id).exists():
-                recomments = Comment.objects.filter(post=post_id, parent_comment_id=comment.id)[START:START+LIMIT]
-                for recomment in recomments:
-                    re_comment.append({
-                        'id'     : recomment.id,
-                        'parent_comment_id': recomment.parent_comment_id,
-                        'name'   : post.author.name,
-                        'content': recomment.content,
-                        'created_at' : recomment.created_at.strftime("%Y.%m.%d %H:%M"),
-                    })
-            comment_list.append({
-                'id'            : comment.id,
-                'post_id'       : post.id,
-                'name'          : post.author.name,
-                'content'       : comment.content,
-                'created_at'    : recomment.created_at.strftime("%Y.%m.%d %H:%M"),
-                'parent_comment': re_comment if re_comment else "없음"
-            })
+        comment_list=[{
+            'id'            : comment.id,
+            'post_id'       : post.id,
+            'name'          : post.author.name,
+            'content'       : comment.content,
+            'created_at'    : comment.created_at.strftime("%Y.%m.%d %H:%M"),
+            'parent_comment': [{
+                'id'               : recomment.id,
+                'parent_comment_id': recomment.parent_comment_id,
+                'name'             : post.author.name,
+                'content'          : recomment.content,
+                'created_at'       : recomment.created_at.strftime("%Y.%m.%d %H:%M"),
+            }for recomment in Comment.objects.filter(post=post_id, parent_comment_id=comment.id)\
+                                             .order_by('created_at')[start:start+limit]] or '없음' 
+        }for comment in comments]
+        
         
         return JsonResponse({"COMMENT":comment_list},status = 200)
 
@@ -244,16 +244,16 @@ class CommentView(View):
         try:
             user = request.user
             data = json.loads(request.body)
-            content = data.get('content',None)
+            content = data['content']
 
             if content == "":
                     return JsonResponse({"MESSAGE":"NOT_COMMENT"},status=400)
 
             if not Comment.objects.filter(id=comment_id, author=user).exists():
-                return JsonResponse({'message':'NOT_EXISTS'},status=400)
+                return JsonResponse({'MESSAGE':'NOT_EXISTS'},status=400)
 
             Comment.objects.filter(id=comment_id).update(content=content)
-            return JsonResponse({"MESSAGE":"UPDATE_CUSSESS"},status = 200)
+            return JsonResponse({"MESSAGE":"UPDATE_SUCCESS"},status = 200)
         except KeyError:
             return JsonResponse({"MESSAGE": "KEY_ERROR"}, status=400)
 
@@ -267,7 +267,7 @@ class CommentView(View):
         comment = Comment.objects.filter(id=comment_id, author=user)
         comment.delete()
 
-        return JsonResponse({"MESSAGE":"DELETE_CUSSESS"},status = 200)
+        return JsonResponse({"MESSAGE":"DELETE_SUCCESS"},status = 200)
 
 class SearchView(View):
     def get(self, request):
