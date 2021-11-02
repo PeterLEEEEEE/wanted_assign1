@@ -1,2 +1,21 @@
-# 프리온보드 ASSIGNMENT1 
-mongodb atlas, djongo 사용
+# 프리온보드 [ASSIGNMENT1] 
+
+## ✨ 배포(base url)
+
+http://3.143.24.251:8000
+
+
+## ✨ 멤버
+
+|  이름  | 구현 |
+| :----: | :--: |
+| 이무현 | 게시물 조회수, 검색어 |
+| 김훈태 | 대댓글, 페이지네이션 관련 테스트케이스 및 readme  |
+| 안다민 | AWS 배포, 검색어 테스트케이스 |
+
+<br>
+
+## 사용 스택
+- mongodb atlas, python django
+
+## 
