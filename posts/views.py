@@ -84,7 +84,7 @@ class PostView(View):
         try:
             data = json.loads(request.body)
             if not Category.objects.filter(name=data['category']).exists():
-                return JsonResponse({"MESSAGE": "CATEGORY DOES NOT EXIST"})
+                return JsonResponse({"MESSAGE": "CATEGORY DOES NOT EXIST"}, status=404)
             category = Category.objects.get(name=data['category'])
             
             if data["title"].strip() == "":
