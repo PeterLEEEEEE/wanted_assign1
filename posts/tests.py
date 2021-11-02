@@ -277,7 +277,8 @@ class PostTest(TestCase):
                 "author"  : "peter",
                 "content" : "this is peter's post",
                 "user_id" : 1,
-                "written" : written
+                "written" : written,
+                "view_count": 1,
             }
         }
         
@@ -307,6 +308,7 @@ class PostTest(TestCase):
                         "written": written3,
                         "post_id": 3,
                         "user_id": 1,
+                        "view_count": 0,
                     },
                     {
                         "title": "title for post2",
@@ -314,6 +316,7 @@ class PostTest(TestCase):
                         "written": written2,
                         "post_id": 2,
                         "user_id": 1,
+                        "view_count": 0,
                     },
                     {
                         "title": "title for post1",
@@ -321,6 +324,7 @@ class PostTest(TestCase):
                         "written": written1,
                         "post_id": 1,
                         "user_id": 1,
+                        "view_count": 0,
                     }
                 ],
                 "post_count": 3,
@@ -336,3 +340,4 @@ class PostTest(TestCase):
         
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"MESSAGE": "MUST START WITH GREATER THAN 0"})
+    
