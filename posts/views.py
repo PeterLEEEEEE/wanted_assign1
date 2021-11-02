@@ -15,17 +15,37 @@ class PostDetailView(View):
         if not Post.objects.filter(id=post_id).exists():
             return JsonResponse({"MESSAGE": "POST DOES NOT EXIST"}, status=404)
         
+        cookie = request.COOKIES.get('hits', '|')
         post = Post.objects.select_related('author').get(id=post_id)
+        temp = post.view_count
+        
+        if f'{post_id}' not in cookie:
+            temp += 1
         
         post_list = {
-            "title": post.title,
-            "author": post.author.name,
-            "user_id": post.author.id,
-            "content": post.content,
-            "written": post.created_at.strftime("%Y.%m.%d %H:%M")
-        }
+                "title": post.title,
+                "author": post.author.name,
+                "user_id": post.author.id,
+                "content": post.content,
+                "written": post.created_at.strftime("%Y.%m.%d %H:%M"),
+                "view_count": temp,
+            }
         
-        return JsonResponse({"RESULT": post_list}, status=200)
+        if f'{post_id}' in cookie:
+            return JsonResponse({"RESULT": post_list}, status=200)
+        
+        else:
+            res = JsonResponse({"RESULT": post_list}, status=200)
+            
+            expire_date, time_now = datetime.now(), datetime.now()
+            expires = (expire_date + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) - time_now
+            max_age = expires.total_seconds()
+            cookie += f'{post_id}|'
+            res.set_cookie('hits', value=cookie, max_age=max_age)
+            post.view_count += 1
+            post.save()
+                
+            return res
 
 class PostListView(View):
     def get(self, request):
@@ -39,11 +59,12 @@ class PostListView(View):
         START = (int(OFFSET)-1) * LIMIT
 
         post_list = [{
-            "title": post.title,
-            "author": post.author.name,
-            "written": post.created_at.strftime('%Y.%m.%d %H:%M'),
-            "post_id": post.id,
-            "user_id": post.author.id,
+            "title"     : post.title,
+            "author"    : post.author.name,
+            "written"   : post.created_at.strftime('%Y.%m.%d %H:%M'),
+            "post_id"   : post.id,
+            "user_id"   : post.author.id,
+            "view_count": post.view_count 
         }for post in posts[START:START+LIMIT]]
 
         return JsonResponse({
