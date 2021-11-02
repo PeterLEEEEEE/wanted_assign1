@@ -34,8 +34,10 @@ http://3.143.24.251:8000
 | PATCH  | /posts/post/manage/<post_id> | title, content | 게시글 수정 |
 | DELETE | /posts/post/manage/<post_id> |               | 게시글 삭제 |
 |  GET   | /posts/post/search          |                | 기능 별 검색 |
-| POST  | /posts/<int:post_id>/comment|               |     댓글 작성  | 
-| GET   | /posts/comment/<comment_id>|                |     댓글 가져오기 |
+| POST | posts/<post_id>/comment | content, parent_comment_id | 대댓글작성 |
+| GET | posts/<post_id>/comment |                           | 대댓글조회 |
+| PATCH | posts/comment/<comment_id>| content              | 대댓글수정 |
+| DELETE | posts/comment/<comment_id> |                    | 대댓글삭제 |
 
 <br>
 
@@ -243,7 +245,8 @@ http://3.143.24.251:8000
 | post_id    | string |  posts/post/1 | path parameter로 post_id을 전달받아서 게시글이 존재하는 지 파악한 후 있으면 반환 |
 
 - 중복 조회수 제거: 쿠키를 사용하여 hits: |1|2| 와 같은 방법으로 사용자에게 방문한 게시글의 id를 쿠키에 붙여서 반환함.
-- 쿠키는 자정이 지나면 사라지며 다시 조회수를 올리는 것이 가능함
+- 쿠키 사용 이유: 중복 제거에는 ip, local strage 등 여러 기법이 존재하지만 db 하중이 가장 적다고 판단한 쿠키를 사용하였음.
+- 쿠키는 자정이 지나면 사라지며 다시 조회수를 올리는 것이 가능함.
 
 **SUCCESS EXAMPLE**
 ```
@@ -395,5 +398,129 @@ http://3.143.24.251:8000
 # 검색에 부합하는 내용이 없을 시 
 {
     "RESULT": []
+}
+```
+
+### 9. 대댓글 
+- Endpoint
+
+| **METHOD** | **ENDPOINT**   | **body**   | **수행 목적** |
+|:------|:-------------|:-----------------------:|:------------|
+| POST | posts/<post_id>/comment | content, parent_comment_id | 대댓글작성 |
+| GET | posts/<post_id>/comment |                           | 대댓글조회 |
+| PATCH | posts/comment/<comment_id>| content              | 대댓글수정 |
+| DELETE | posts/comment/<comment_id> |                    | 대댓글삭제 |
+
+#### 대댓글 작성
+- endpoint : http://3.143.24.251:8000/posts/<post_id>/comment
+
+**SUCCESS EXAMPLE**
+```
+{
+  "MESSAGE": "COMMENT_SUCCESS"
+}
+```
+**ERROR EXAMPLE**
+```
+#body 일부 미입력(400)
+{
+"MESSAGE": "KEY_ERROR"
+}
+```
+```
+# Post_id 가 없을때 (404)
+{
+  "MESSAGE": "INVALID_POSTING"
+}
+```
+```
+# 빈값일때(400)
+{
+ "MESSAGE": "NOT_COMMENT"
+}
+```
+#### 대댓글 조회
+- endpoint : http://3.143.24.251:8000/posts/<post_id>/comment?page=1
+page를 query parameter로 전달 받으면 LIMIT을 통해 한 페이지 당 3개의 게시물을 보여줄 수 있게끔 구현
+
+**SUCCESS EXAMPLE**
+```
+{
+"COMMENT": [
+    {
+      "id": 1, // 댓글 Id
+      "post_id": 1,
+      "name": "김훈태", //작성자 이름
+      "content": "하이요", //댓글 내용
+      "created_at": "2021.11.02 08:30", //작성시간
+      "parent_comment": [ // 대댓글
+        {
+          "id": 2,
+          "parent_comment_id": 1, // 부모 댓글 id
+          "name": "김태훈" , //작성자 이름
+          "content": "바이요", //대댓글 내용
+          "created_at": "2021.11.02 08:52" //작성시간
+        }
+	]
+}
+```
+**ERROR EXAMPLE**
+```
+# Pagination 파라미터가 0보다 작을때
+{
+  "MESSAGE": "MUST START WITH GREATER THAN 0" // 404
+}
+```
+```
+# Post_id 가 없을때 (404)
+{
+  "MESSAGE": "NOT_EXISTS"
+}
+```
+
+#### 대댓글 수정
+- endpoint : http://3.143.24.251:8000/posts/comment/<comment_id>
+
+**SUCCESS EXAMPLE**
+```
+# 성공(200)
+{
+  "MESSAGE": "UPDATE_SUCCESS"
+}
+```
+**ERROR EXAMPLE**
+```
+# body 일부 미입력(400)
+{
+  "MESSAGE": "KEY_ERROR"
+}
+```
+```
+# comment_id 가 없을때 (404)
+{
+  "MESSAGE": "NOT_EXISTS"
+}
+```
+```
+# 빈값일때(400)
+{
+  "MESSAGE": "NOT_COMMENT"
+}
+```
+#### 대댓글 삭제
+- endpoint : http://3.143.24.251:8000/posts/comment/<comment_id> 
+
+**SUCCESS EXAMPLE**
+```
+# 성공(200)
+{
+  "MESSAGE": "DELETE_SUCCESS"
+}
+```
+**ERROR EXAMPLE**
+```
+# comment_id 가 없을때 (404)
+{
+  "MESSAGE": "INVALID_COMMENT"
 }
 ```
