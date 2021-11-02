@@ -1,13 +1,13 @@
 import json
-from json.decoder import JSONDecodeError
-from datetime import date, datetime, timedelta
+from json.decoder     import JSONDecodeError
+from datetime         import date, datetime, timedelta
 
-from django.views import View
-from django.http  import JsonResponse
-
-from users.utils  import login_decorator
-from posts.models import Post
-from users.models import User
+from django.views     import View
+from django.http      import JsonResponse
+from django.db.models import Q
+from users.utils      import login_decorator
+from posts.models     import Category, Post
+from users.models     import User
 
 
 class PostDetailView(View):
@@ -28,6 +28,8 @@ class PostDetailView(View):
                 "user_id": post.author.id,
                 "content": post.content,
                 "written": post.created_at.strftime("%Y.%m.%d %H:%M"),
+                "category": post.category.name,
+                "category_id": post.category_id,
                 "view_count": temp,
             }
         
@@ -64,6 +66,8 @@ class PostListView(View):
             "written"   : post.created_at.strftime('%Y.%m.%d %H:%M'),
             "post_id"   : post.id,
             "user_id"   : post.author.id,
+            "category": post.category.name,
+            "category_id": post.category_id,
             "view_count": post.view_count 
         }for post in posts[START:START+LIMIT]]
 
@@ -79,7 +83,10 @@ class PostView(View):
     def post(self, request):
         try:
             data = json.loads(request.body)
-
+            if not Category.objects.filter(name=data['category']).exists():
+                return JsonResponse({"MESSAGE": "CATEGORY DOES NOT EXIST"})
+            category = Category.objects.get(name=data['category'])
+            
             if data["title"].strip() == "":
                 return JsonResponse({"MESSAGE": "TITLE MUST CONTAIN WORDS"}, status=404)
             
@@ -91,6 +98,7 @@ class PostView(View):
             user_id = request.user.id
             
             Post.objects.create(
+                category  = category,
                 title     = data['title'],
                 content   = data['content'],
                 author_id = user_id
@@ -168,3 +176,37 @@ class PostManageView(View):
             return JsonResponse({"MESSAGE": "KEY_ERROR"}, status=404)
         except JSONDecodeError:
             return JsonResponse({"message": "INVALID DATA FORMAT"}, status=400)
+
+class SearchView(View):
+    def get(self, request):
+        q = Q()
+        search_target = request.GET.get('search-type', '')
+        target = request.GET.get('search', '')
+
+        search_filter = {
+            'all'     : Q(author__name__icontains = target) | Q(category__name__icontains = target) | Q(title__icontains = target) | Q(content__icontains = target),
+            'author'  : Q(author__name__icontains = target),
+            'category': Q(category__name__icontains = target),
+            'title_content': Q(title__icontains = target) | Q(content__icontains = target),
+        }
+
+        posts = Post.objects.filter(search_filter[search_target]).select_related('author', 'category').distinct()
+
+        if not posts:
+            return JsonResponse({"RESULT": []},status=200)
+        
+        posts_list = [{
+            "title"      : post.title,
+            "author"     : post.author.name,
+            "written"    : post.created_at.strftime('%Y.%m.%d %H:%M'),
+            "post_id"    : post.id,
+            "user_id"    : post.author.id,
+            "category"   : post.category.name,
+            "category_id": post.category_id,
+            "view_count" : post.view_count 
+        }for post in posts]
+
+        return JsonResponse({
+            "MESSAGE": posts_list,
+            "posts_count": len(posts)
+        }, status=200)
