@@ -390,5 +390,42 @@ class PostTest(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"MESSAGE": "MUST START WITH GREATER THAN 0"})
 
-    
-    
+    def test_search_no_word(self):
+        client = Client()
+        header = {"HTTP_Authorization": self.token1}
+
+        search_target = {
+            "title"      : "주간 스포츠",
+            "author"     : "가나다",
+            "written"    : "2021.11.02 13:00",
+            "post_id"    : 1,
+            "user_id"    : 1,
+            "category"   : "스포츠",
+            "category_id": 3,
+            "view_count" : 3
+        }
+
+        response = client.patch('/posts/post/search', json.dumps(search_target), **header,
+                                content_type="application/json")
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json(), {"MESSAGE": "MUST CONTAIN WORDS"})
+
+    def test_search_not_exist(self):
+        client = Client()
+        header = {"HTTP_Authorization": self.token1}
+
+        search_target = {
+            "title"      : "주간 스포츠",
+            "author"     : "가나다",
+            "written"    : "2021.11.02 13:00",
+            "post_id"    : 1,
+            "user_id"    : 1,
+            "category"   : "스포츠",
+            "category_id": 3,
+            "view_count" : 3
+        }
+
+        response = client.patch('/posts/post/search', json.dumps(search_target), **header,
+                                content_type="application/json")
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.json(), {"MESSAGE": "SEARCH DOES NOT EXIST"})
