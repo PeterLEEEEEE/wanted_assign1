@@ -409,45 +409,37 @@ class PostTest(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"MESSAGE": "MUST START WITH GREATER THAN 0"})
 
-    def test_search_no_word(self):
+    def test_search_success(self):
         client = Client()
-        header = {"HTTP_Authorization": self.token1}
-
-        search_target = {
-            "title"      : "주간 스포츠",
-            "author"     : "가나다",
-            "written"    : "2021.11.02 13:00",
-            "post_id"    : 1,
-            "user_id"    : 1,
-            "category"   : "스포츠",
+        response = client.get('/posts/post/search?search-type=category&search=스포츠', content_type='application/json')
+        written3 = Post.objects.get(id=3).created_at.strftime('%Y.%m.%d %H:%M')
+        test = {
+            "title": "title for post3",
+            "author": "peter",
+            "written": written3,
+            "post_id": 3,
+            "user_id": 1,
+            "view_count": 0,
             "category_id": 3,
-            "view_count" : 3
+            "category": "스포츠"
         }
 
-        response = client.patch('/posts/post/search', json.dumps(search_target), **header,
-                                content_type="application/json")
-        self.assertEqual(response.status_code, 405)
-        self.assertEqual(response.json(), {"MESSAGE": "MUST CONTAIN WORDS"})
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), 
+            {
+                "MESSAGE": [test],
+                "posts_count": 1
+            }
+        )
 
-    def test_search_not_exist(self):
+    def test_search_empty_data(self):
         client = Client()
-        header = {"HTTP_Authorization": self.token1}
+        response = client.get('/posts/post/search?search-type=author&search=alaraa', content_type='application/json')
 
-        search_target = {
-            "title"      : "주간 스포츠",
-            "author"     : "가나다",
-            "written"    : "2021.11.02 13:00",
-            "post_id"    : 1,
-            "user_id"    : 1,
-            "category"   : "스포츠",
-            "category_id": 3,
-            "view_count" : 3
-        }
-
-        response = client.patch('/posts/post/search', json.dumps(search_target), **header,
-                                content_type="application/json")
-        self.assertEqual(response.status_code, 405)
-        self.assertEqual(response.json(), {"MESSAGE": "SEARCH DOES NOT EXIST"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"RESULT": []})
+    
     def test_comments_post_success(self):
         client = Client()
         headers  = {'HTTP_Authorization': self.token1}
