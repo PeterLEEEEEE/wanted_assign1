@@ -3,7 +3,8 @@ from posts.views import (
     PostDetailView, 
     PostManageView,
     PostListView,
-    PostView
+    PostView,
+    SearchView
 )
 
 urlpatterns = [
@@ -11,4 +12,5 @@ urlpatterns = [
     path('/main', PostListView.as_view()),
     path('/newpost', PostView.as_view()),
     path('/post/manage/<int:post_id>', PostManageView.as_view()),
+    path('/post/search', SearchView.as_view()),
 ]
